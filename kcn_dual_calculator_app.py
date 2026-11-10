@@ -422,7 +422,135 @@ def prepare_runtime(bundle_path=BUNDLE_PATH, expected_sha256=RUNTIME_SHA256, cac
             shutil.rmtree(staging, ignore_errors=True)
 
 
+# NKPI v9.2.3: map-loading repair for the existing v9.2.2 launcher.
+# Keep the existing nkpi_runtime.zip unchanged.
+import base64 as _maps_base64
+import zlib as _maps_zlib
+
+_MAPS_PATCH_SHA = "32ece4efcd399cda722b1e6c4a8312d985d113d8b4661f9e69f7e233792d6805"
+_MAPS_PATCH = """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"""
+_maps_previous_prepare_runtime = prepare_runtime
+
+
+def prepare_runtime(bundle_path=BUNDLE_PATH, expected_sha256=RUNTIME_SHA256, cache_base=None):
+    original = _maps_previous_prepare_runtime(bundle_path, expected_sha256, cache_base)
+    try:
+        packed = _maps_base64.b64decode("".join(_MAPS_PATCH.split()), validate=True)
+        if hashlib.sha256(packed).hexdigest() != _MAPS_PATCH_SHA:
+            raise BundleError("Incomplete pasted map repair. Recopy the complete code block.")
+        edits = json.loads(_maps_zlib.decompress(packed))
+    except (ValueError, _maps_zlib.error) as exc:
+        raise BundleError("The pasted map repair could not be decoded.") from exc
+
+    version = hashlib.sha256(("v923:" + original.name + ":" + _MAPS_PATCH_SHA).encode()).hexdigest()
+    destination = original.parent / version
+
+    def verified(folder):
+        if not _installed(folder, version):
+            return False
+        return all(hashlib.sha256((folder / rel).read_bytes()).hexdigest() == record["a"]
+                   for rel, record in edits.items())
+
+    staged = None
+    with _STATE["lock"]:
+        if verified(destination):
+            return destination
+        if destination.exists() or destination.is_symlink():
+            raise BundleError("Incomplete map repair cache. Reboot the app to rebuild it.")
+        try:
+            staged = Path(tempfile.mkdtemp(prefix=".nkpi-maps-v923-", dir=original.parent))
+            shutil.copytree(original, staged, dirs_exist_ok=True)
+            for rel, record in edits.items():
+                file = staged / rel
+                raw = file.read_bytes()
+                if hashlib.sha256(raw).hexdigest() != record["b"]:
+                    raise BundleError("This map repair does not match the installed v9.2.2 version: " + rel)
+                lines = raw.decode("utf-8").splitlines(keepends=True)
+                output, start = [], 0
+                for a, b, replacement in record["e"]:
+                    if not 0 <= start <= a <= b <= len(lines):
+                        raise BundleError("Invalid map repair: " + rel)
+                    output.extend(lines[start:a])
+                    output.append(replacement)
+                    start = b
+                output.extend(lines[start:])
+                revised = "".join(output).encode("utf-8")
+                if hashlib.sha256(revised).hexdigest() != record["a"]:
+                    raise BundleError("Verification failed for the patched file: " + rel)
+                file.write_bytes(revised)
+
+            manifest_path = staged / "FILE_MANIFEST.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["release"] = "9.2.3-all-maps-browser-repair"
+            changed_files = {rel: record["a"] for rel, record in edits.items()}
+            for entry in manifest["files"]:
+                if entry["path"] in changed_files:
+                    entry["sha256"] = changed_files[entry["path"]]
+                actual = hashlib.sha256((staged / entry["path"]).read_bytes()).hexdigest()
+                if actual != entry["sha256"]:
+                    raise BundleError("Runtime file failed integrity checking: " + entry["path"])
+            manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+            previous_delivery = json.loads((original / ".nkpi-delivery.json").read_text(encoding="utf-8"))
+            build = runpy.run_path(str(staged / "tools/build_delivery.py"), run_name="_nkpi_maps_build")["build"]
+            current_delivery = build(staged)
+            if current_delivery["extractor_sha256"] == previous_delivery["extractor_sha256"]:
+                raise BundleError("Map repair was not incorporated into the rebuilt importer.")
+
+            (staged / _MARKER).write_text(version, encoding="ascii")
+            if not verified(staged):
+                raise BundleError("The repaired interface did not pass its final integrity check.")
+            try:
+                staged.rename(destination)
+            except OSError as exc:
+                if exc.errno not in (errno.EEXIST, errno.ENOTEMPTY) or not verified(destination):
+                    raise
+            return destination
+        finally:
+            if staged is not None and staged.exists():
+                shutil.rmtree(staged, ignore_errors=True)
+
+
 if __name__ == "__main__":
     main()
+
 
 
